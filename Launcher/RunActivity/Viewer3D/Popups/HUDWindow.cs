@@ -277,10 +277,6 @@ namespace Orts.Viewer3D.Popups
         }
 
 
-
-
-
-
         public override void Draw(SpriteBatch spriteBatch)
         {
             // Completely customise the rendering of the HUD - don't call base.Draw(spriteBatch).
@@ -335,7 +331,6 @@ namespace Orts.Viewer3D.Popups
             public int CurrentLabelColumn;
             public int CurrentValueColumn;
         }
-
 
         static void TableSetCell(TableData table, int cellColumn, string format, params object[] args)
         {
@@ -400,9 +395,6 @@ namespace Orts.Viewer3D.Popups
             table.CurrentRow++;
         }
         #endregion
-
-
-
 
         void TextPageCommon(TableData table)
         {

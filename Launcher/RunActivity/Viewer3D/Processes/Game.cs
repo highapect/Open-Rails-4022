@@ -71,10 +71,12 @@ namespace Orts.Viewer3D.Processes
         /// </summary>
         public SoundProcess SoundProcess { get; private set; }
 
+        // WebServer
         /// <summary>
-        /// Exposes access to the <see cref="WebServer"/> for the game.
+        /// Exposes access to the <see cref="WebServerProcess"/> for the game.
         /// </summary>
         public WebServerProcess WebServerProcess { get; private set; }
+
 
         /// <summary>
         /// Gets the current <see cref="GameState"/>, if there is one, or <c>null</c>.
@@ -97,7 +99,8 @@ namespace Orts.Viewer3D.Processes
             UpdaterProcess = new UpdaterProcess(this);
             LoaderProcess = new LoaderProcess(this);
             SoundProcess = new SoundProcess(this);
-            WebServerProcess = new WebServerProcess(this);
+            WebServerProcess = new WebServerProcess(this);      // WebServer
+
             States = new Stack<GameState>();
         }
 
@@ -159,6 +162,7 @@ namespace Orts.Viewer3D.Processes
             LoaderProcess.Stop();
             SoundProcess.Stop();
             WebServerProcess.Stop();
+
         }
 
         [ThreadName("Render")]
