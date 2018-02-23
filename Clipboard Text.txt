@@ -1,0 +1,1 @@
+xcopy .\RunActivity\Viewer3D\WebServices\Web\*.* "\Open Rails\Program\Content\Web" /s

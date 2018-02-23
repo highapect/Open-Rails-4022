@@ -325,12 +325,18 @@
     <Content Include="Version.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="Viewer3D\WebServices\Web\css\sample.css" />
     <Content Include="Viewer3D\WebServices\Web\css\hud.css" />
+    <Content Include="Viewer3D\WebServices\Web\css\trackmonitor.css" />
     <Content Include="Viewer3D\WebServices\Web\images\or_logo.png" />
     <Content Include="Viewer3D\WebServices\Web\images\waverley.jpg" />
     <Content Include="Viewer3D\WebServices\Web\images\zig-zag.jpg" />
+    <Content Include="Viewer3D\WebServices\Web\index - ApiSample.html" />
     <Content Include="Viewer3D\WebServices\Web\index.html" />
-    <Content Include="Viewer3D\WebServices\Web\js\hud.js" />
+    <None Include="Viewer3D\WebServices\Web\js\hud.js" />
+    <Content Include="Viewer3D\WebServices\Web\js\ApiSample.js" />
+    <Content Include="Viewer3D\WebServices\Web\js\ApiTrainInfo.js" />
+    <Content Include="Viewer3D\WebServices\Web\js\trackmonitor.js" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Orts.Formats.Msts\Orts.Formats.Msts.csproj">
@@ -391,8 +397,10 @@
   <PropertyGroup>
     <PreBuildEvent>
     </PreBuildEvent>
-    <PostBuildEvent>echo $Revision: 000 $&gt;Revision.txt
+    <PostBuildEvent>xcopy "\Open Rails\Source\RunActivity\Viewer3D\WebServices\Web\*.*" "\Open Rails\Program\Content\Web" /s /y
+echo $Revision: 000 $&gt;Revision.txt
 date /t&gt;&gt;Revision.txt
-time /t&gt;&gt;Revision.txt</PostBuildEvent>
+time /t&gt;&gt;Revision.txt
+</PostBuildEvent>
   </PropertyGroup>
 </Project>

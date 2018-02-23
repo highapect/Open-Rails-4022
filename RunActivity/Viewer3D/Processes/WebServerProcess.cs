@@ -36,8 +36,8 @@ namespace Orts.Viewer3D.Processes
         readonly ProcessState State = new ProcessState("WebServer");
         readonly Game Game;
         readonly Thread Thread;
-        readonly WatchdogToken WatchdogToken;
-        readonly CancellationTokenSource CancellationTokenSource;
+        //readonly WatchdogToken WatchdogToken;
+        //readonly CancellationTokenSource CancellationTokenSource;
 
         WebServer webServer;
 
@@ -45,14 +45,14 @@ namespace Orts.Viewer3D.Processes
         {
             Game = game;
             Thread = new Thread(WebServerThread);
-            WatchdogToken = new WatchdogToken(Thread);
-            WatchdogToken.SpecialDispensationFactor = 6;    // ???
-            CancellationTokenSource = new CancellationTokenSource(WatchdogToken.Ping);
+        //    WatchdogToken = new WatchdogToken(Thread);
+        //    WatchdogToken.SpecialDispensationFactor = 6;    // ???
+        //    CancellationTokenSource = new CancellationTokenSource(WatchdogToken.Ping);
         }
 
         public void Start()
         {
-            Game.WatchdogProcess.Register(WatchdogToken);
+        //    Game.WatchdogProcess.Register(WatchdogToken);
             Thread.Start();
         }
 
@@ -60,8 +60,8 @@ namespace Orts.Viewer3D.Processes
         {
             webServer.stop();
 
-            Game.WatchdogProcess.Unregister(WatchdogToken);
-            CancellationTokenSource.Cancel();
+        //    Game.WatchdogProcess.Unregister(WatchdogToken);
+        //    CancellationTokenSource.Cancel();
             State.SignalTerminate();
         }
 
@@ -88,13 +88,13 @@ namespace Orts.Viewer3D.Processes
         /// and should not be used.
         /// </para>
         /// </remarks>
-        public CancellationToken CancellationToken
-        {
-            get
-            {
-                return CancellationTokenSource.Token;
-            }
-        }
+        //public CancellationToken CancellationToken
+        //{
+        //    get
+        //    {
+        //        return CancellationTokenSource.Token;
+        //    }
+        //}
 
         public void WaitTillFinished()
         {
@@ -107,7 +107,7 @@ namespace Orts.Viewer3D.Processes
             Profiler.SetThread();
             Game.SetThreadLanguage();
 
-            webServer = new WebServer("127.0.0.1", 2150, 1, "\\Open Rails\\Program\\Content\\Web");
+            webServer = new WebServer("10.0.0.61", 2150, 1, "\\Open Rails\\Program\\Content\\Web");
             webServer.Run();
         }
     }

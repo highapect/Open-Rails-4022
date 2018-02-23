@@ -1,17 +1,17 @@
 ﻿// COPYRIGHT 2009, 2010, 2011, 2012, 2013, 2014 by the Open Rails project.
-// 
+//
 // This file is part of Open Rails.
-// 
+//
 // Open Rails is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-// 
+//
 // Open Rails is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Open Rails.  If not, see <http://www.gnu.org/licenses/>.
 //
@@ -27,27 +27,27 @@
 // ===========================================================================================
 
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
-using System.Threading;
 using System.Text;
-using System.Collections.Generic;
-using System.IO;
-using System.Diagnostics;
-//using Orts.Viewer3D;
-//using Orts.Viewer3D.Popups;
+using System.Threading;
 using Newtonsoft.Json;
+using Orts.Simulation;
+using Orts.Simulation.Physics;
 
 namespace Orts.Viewer3D.WebServices
 {
     // =================================================================
-    // State object for reading client data asynchronously  
+    // State object for reading client data asynchronously
     // =================================================================
     public class StateObject
     {
-        public Socket WorkSocket = null;                    // Client  socket. 
-        public const int BufferSize = 1024;                 // Size of receive buffer. 
-        public byte[] Buffer = new byte[BufferSize];        // Receive buffer. 
+        public Socket WorkSocket = null;                    // Client  socket.
+        public const int BufferSize = 1024;                 // Size of receive buffer.
+        public byte[] Buffer = new byte[BufferSize];        // Receive buffer.
     }
 
     // ==================================================================
@@ -76,7 +76,7 @@ namespace Orts.Viewer3D.WebServices
     }
 
     // ====================================================================
-    //  TCP/IP Sockets WebServer 
+    //  TCP/IP Sockets WebServer
     // ====================================================================
     public class WebServer
     {
@@ -90,14 +90,14 @@ namespace Orts.Viewer3D.WebServices
         private int MaxConnections = 0;
 
         // ===========================================================================================
-        // 		Thread signal.  
+        // 		Thread signal.
         // ===========================================================================================
         private static ManualResetEvent allDone = new ManualResetEvent(false);
 
         // ===========================================================================================
         // File exstensions this server will handle - any other extensions are returns as not found
         // ===========================================================================================
-        static Dictionary<string, string> extensions = new Dictionary<string, string>()
+        private static Dictionary<string, string> extensions = new Dictionary<string, string>()
         {
             { "htm",  "text/html" },
             { "html", "text/html" },
@@ -112,6 +112,7 @@ namespace Orts.Viewer3D.WebServices
             { "jpg",  "image/jpg" },
             { "jpeg", "image/jpeg" }
         };
+
         public Dictionary<string, string> Extensions { get => extensions; set => extensions = value; }
 
         // ===========================================================================================
@@ -129,9 +130,11 @@ namespace Orts.Viewer3D.WebServices
             ContentPath = path;
             MaxConnections = maxConnections;
             ApiDict.Add("/API/HUD", ApiHUD);
+            ApiDict.Add("/API/APISAMPLE", ApiSample);
+            ApiDict.Add("/API/TRACKMONITOR", ApiTrackMonitor);
+            ApiDict.Add("/API/TRAININFO", ApiTrainInfo);
             return;
         }
-
 
         // ===========================================================================================
         // ===========================================================================================
@@ -141,8 +144,8 @@ namespace Orts.Viewer3D.WebServices
                 return;
 
             // Viewer is not yet initialized in the GameState object - wait until it is
-            while ((viewer = Program.Viewer) == null)
-                Thread.Sleep (1000);
+            while ((viewer = Program.Viewer) == null) 
+                Thread.Sleep(1000);
 
             try
             {
@@ -160,27 +163,27 @@ namespace Orts.Viewer3D.WebServices
             while (true)
             {
                 Running = true;
-                // Set the event to nonsignaled state.  
+                // Set the event to nonsignaled state.
                 allDone.Reset();
 
                 try
                 {
-                    // Start an asynchronous socket to listen for connections.  
+                    // Start an asynchronous socket to listen for connections.
                     ServerSocket.BeginAccept(new AsyncCallback(acceptCallback), ServerSocket);
                 }
                 catch (Exception e)
                 {
                     Console.WriteLine("Exception calling BeginAccept: " + e.Message);
                 }
-                // TODO: 
-                // Break out of any waiting states 
+                // TODO:
+                // Break out of any waiting states
                 // Break out of any async states
                 // Close down any open sockets !!!!
-                if (!Running) 
-				{
-					break;
-				}
-                // Wait until a connection is made before continuing.  
+                if (!Running)
+                {
+                    break;
+                }
+                // Wait until a connection is made before continuing.
                 allDone.WaitOne();
             }
         }
@@ -189,12 +192,12 @@ namespace Orts.Viewer3D.WebServices
         // ===========================================================================================
         public static void acceptCallback(IAsyncResult ar)
         {
-            // Signal the main thread to continue.  
+            // Signal the main thread to continue.
             allDone.Set();
-            // Get the socket that handles the client request.  
+            // Get the socket that handles the client request.
             Socket listener = (Socket)ar.AsyncState;
             Socket handler = listener.EndAccept(ar);
-            // Create the state object.  
+            // Create the state object.
             StateObject state = new StateObject();
             state.WorkSocket = handler;
             handler.BeginReceive(state.Buffer, 0, StateObject.BufferSize, 0, new AsyncCallback(receiveCallback), state);
@@ -205,8 +208,8 @@ namespace Orts.Viewer3D.WebServices
         // ===========================================================================================
         public static void receiveCallback(IAsyncResult ar)
         {
-            // Retrieve the state object and the handler socket  
-            // from the asynchronous state object.  
+            // Retrieve the state object and the handler socket
+            // from the asynchronous state object.
             StateObject state = (StateObject)ar.AsyncState;
             StreamReader streamReader;
             HttpRequest request = new HttpRequest();
@@ -295,8 +298,9 @@ namespace Orts.Viewer3D.WebServices
             {
                 Running = false;
                 // TODO:
-                // Will Sutdown and close break out of any async waiting states?? 
-                try {
+                // Will Sutdown and close break out of any async waiting states??
+                try
+                {
                     ServerSocket.Shutdown(SocketShutdown.Both);
                     ServerSocket.Close();
                 }
@@ -310,7 +314,7 @@ namespace Orts.Viewer3D.WebServices
 
         // ===========================================================================================
         // ===========================================================================================
-        static void ProcessPost(HttpRequest request, HttpResponse response)
+        private static void ProcessPost(HttpRequest request, HttpResponse response)
         {
             request.URI = request.URI.Replace('\\', '/');
             request.URI = request.URI.ToUpper();
@@ -327,14 +331,14 @@ namespace Orts.Viewer3D.WebServices
 
         // ===========================================================================================
         // ===========================================================================================
-        static void ProcessGetAPI(HttpRequest request, HttpResponse response)
+        private static void ProcessGetAPI(HttpRequest request, HttpResponse response)
         {
             sendNotImplemented(response);
         }
 
         // ===========================================================================================
         // ===========================================================================================
-        static void ProcessGet(HttpRequest request, HttpResponse response)
+        private static void ProcessGet(HttpRequest request, HttpResponse response)
         {
             request.URI = request.URI.Replace("/", "\\").Replace("\\..", "");
             if (request.URI.StartsWith("/API/"))
@@ -373,7 +377,7 @@ namespace Orts.Viewer3D.WebServices
 
         // ===========================================================================================
         // ===========================================================================================
-        static void HTMLContent(HttpResponse response)
+        private static void HTMLContent(HttpResponse response)
         {
             response.strContent = "<!doctype HTML>" +
                                   "<html>" +
@@ -391,7 +395,7 @@ namespace Orts.Viewer3D.WebServices
 
         // ===========================================================================================
         // ===========================================================================================
-        static void sendNotImplemented(HttpResponse response)
+        private static void sendNotImplemented(HttpResponse response)
         {
             response.ResponseCode = "501 Not Implemented";
             HTMLContent(response);
@@ -400,7 +404,7 @@ namespace Orts.Viewer3D.WebServices
 
         // ===========================================================================================
         // ===========================================================================================
-        static void sendNotFound(HttpResponse response)
+        private static void sendNotFound(HttpResponse response)
         {
             response.ResponseCode = "404 Not Found";
             HTMLContent(response);
@@ -409,7 +413,7 @@ namespace Orts.Viewer3D.WebServices
 
         // ===========================================================================================
         // ===========================================================================================
-        static void sendServerError(HttpResponse response)
+        private static void sendServerError(HttpResponse response)
         {
             response.ResponseCode = "500 Internal Server Error";
             HTMLContent(response);
@@ -418,7 +422,7 @@ namespace Orts.Viewer3D.WebServices
 
         // ===========================================================================================
         // ===========================================================================================
-        static void sendOkResponse(HttpResponse response)
+        private static void sendOkResponse(HttpResponse response)
         {
             response.ResponseCode = "200 OK";
             SendHttp(response);
@@ -426,9 +430,9 @@ namespace Orts.Viewer3D.WebServices
 
         // ===========================================================================================
         // ===========================================================================================
-        static void SendHttp(HttpResponse response)
+        private static void SendHttp(HttpResponse response)
         {
-            // Convert the string data to byte data using ASCII encoding.  
+            // Convert the string data to byte data using ASCII encoding.
             if (response.strContent.Length > 0)
             {
                 response.byteContent = Encoding.ASCII.GetBytes(response.strContent);
@@ -442,7 +446,7 @@ namespace Orts.Viewer3D.WebServices
                             + "Cache-Control: no-cache \r\n\r\n"
                             + System.Text.Encoding.UTF8.GetString(response.byteContent));
 
-            // Begin sending the data to the remote device.  
+            // Begin sending the data to the remote device.
             response.ClientSocket.BeginSend(byteData, 0,
                                              byteData.Length, 0,
                                              new AsyncCallback(SendHttpCallback),
@@ -451,14 +455,14 @@ namespace Orts.Viewer3D.WebServices
 
         // ===========================================================================================
         // ===========================================================================================
-        static void SendHttpCallback(IAsyncResult ar)
+        private static void SendHttpCallback(IAsyncResult ar)
         {
             try
             {
-                // Retrieve the socket from the state object.  
+                // Retrieve the socket from the state object.
                 Socket clientSocket = (Socket)ar.AsyncState;
 
-                // Complete sending the data to the remote device.  
+                // Complete sending the data to the remote device.
                 int bytesSent = clientSocket.EndSend(ar);
 
                 clientSocket.Shutdown(SocketShutdown.Both);
@@ -488,15 +492,59 @@ namespace Orts.Viewer3D.WebServices
         }
 
         // =======================================================================================
-        // 		API to display the various Heads Up Display Pages
-        // ===========================================================================================  
+        // 		API for Sample Data
+        // =======================================================================================
+
+
+        public class Embedded
+        {
+            public string Str;
+            public int Numb;
+        }
+        public class ApiSampleData
+        {
+            public int intData;
+            public string strData;
+            public DateTime dateData;
+            public Embedded embedded;
+            public string[] strArrayData;
+        }
+
+        // -------------------------------------------------------------------------------------------
+        public object ApiSample(string Parameters)
+        {
+            ApiSampleData sampleData = new ApiSampleData();
+
+            sampleData.intData = 576;
+            sampleData.strData = "Sample String";
+            sampleData.dateData = new DateTime(2018, 1, 1);
+
+            sampleData.embedded = new Embedded ();
+            sampleData.embedded.Str = "Embeddded String";
+            sampleData.embedded.Numb = 123;
+
+            sampleData.strArrayData = new string[5];
+
+            sampleData.strArrayData[0] = "First member";
+            sampleData.strArrayData[1] = "Second member";
+            sampleData.strArrayData[2] = "Third Member";
+            sampleData.strArrayData[3] = "Forth member";
+            sampleData.strArrayData[4] = "Fifth member";
+
+            return (sampleData);
+        }
+
+        // =======================================================================================
+        // 		API to display the HUD Windows
+        // ======================================================================================= 
         public class HudApiTable
         {
             public int nRows;
             public int nCols;
             public string[] values;
         }
-        // -------------------------------------------------------------------------------------------  
+
+        // -------------------------------------------------------------------------------------------
         public class HudApiArray
         {
             public int nTables;
@@ -504,7 +552,8 @@ namespace Orts.Viewer3D.WebServices
             public HudApiTable extraTable;
         }
 
-        // ===========================================================================================  
+
+        // -------------------------------------------------------------------------------------------
         public object ApiHUD(string Parameters)
         {
             int index = Parameters.IndexOf('=');
@@ -526,7 +575,7 @@ namespace Orts.Viewer3D.WebServices
             return hudApiArray;
         }
 
-        // ===========================================================================================  
+        // -------------------------------------------------------------------------------------------
         public HudApiTable ApiHUD_ProcessTable(int pageNo)
         {
             int nRows = 0;
@@ -559,6 +608,30 @@ namespace Orts.Viewer3D.WebServices
             }
             return (apiTable);
         }
+
+        // =======================================================================================
+        // 		API for Track Monitor Data
+        // =======================================================================================
+
+        // -------------------------------------------------------------------------------------------
+        public object ApiTrackMonitor(string Parameters)
+        {
+            Train.TrainInfo trainInfo = viewer.PlayerTrain.GetTrainInfo();
+
+            return (trainInfo);
+
+        }
+
+        // =======================================================================================
+        // 		API for Train Info
+        // =======================================================================================
+
+        // -------------------------------------------------------------------------------------------
+        public object ApiTrainInfo(string Parameters)
+        {
+            Train.TrainInfo trainInfo = viewer.PlayerTrain.GetTrainInfo();
+
+            return (trainInfo);
+        }
     }
 }
-
