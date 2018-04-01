@@ -34,6 +34,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using System.Web; // for HttpUtility.UrlDecode()
 using Newtonsoft.Json;
 using Orts.Simulation;
 using Orts.Simulation.Physics;
@@ -359,9 +360,13 @@ namespace Orts.Viewer3D.WebServices
             string extension = request.URI.Substring(start + 1, length);
             if (extensions.ContainsKey(extension))
             {
-                if (File.Exists(ContentPath + request.URI))
-                {
-                    byte[] bytes = File.ReadAllBytes(ContentPath + request.URI);
+                // Convert %20 code back to space to match filename
+                // Note: VS wouldn't recognise HttpUtility until System.Web was added as a reference. Don't see why this is the case - CJ.
+                var filename = System.Web.HttpUtility.UrlDecode(request.URI);
+                var path = ContentPath + filename;
+                if (File.Exists(path))
+                { 
+                    byte[] bytes = File.ReadAllBytes(path);
                     response.byteContent = new byte[bytes.Length];
                     response.byteContent = bytes;
                     response.ContentType = extensions[extension];

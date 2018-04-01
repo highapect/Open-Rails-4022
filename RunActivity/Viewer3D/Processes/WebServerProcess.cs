@@ -41,8 +41,8 @@ namespace Orts.Viewer3D.Processes
         //readonly CancellationTokenSource CancellationTokenSource;
 
         WebServer webServer;
-        string LocalIp4Address;// = "192.168.1.75";//"10.0.0.61";
-        int Port = 2150;
+        string LocalIp4Address;
+        int Port = 2150; // Port is not officially reserved for any other application - CJ 1-Apr-2018
         string WebPath = @"\Open Rails\Program\Content\Web";
 
         public WebServerProcess(Game game)
