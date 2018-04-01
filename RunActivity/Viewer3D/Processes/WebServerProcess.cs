@@ -40,6 +40,9 @@ namespace Orts.Viewer3D.Processes
         //readonly CancellationTokenSource CancellationTokenSource;
 
         WebServer webServer;
+        string IpAddress = "10.0.0.61";
+        int Port = 2150;
+        string WebPath = @"\Open Rails\Program\Content\Web";
 
         public WebServerProcess(Game game)
         {
@@ -107,7 +110,7 @@ namespace Orts.Viewer3D.Processes
             Profiler.SetThread();
             Game.SetThreadLanguage();
 
-            webServer = new WebServer("10.0.0.61", 2150, 1, "\\Open Rails\\Program\\Content\\Web");
+            webServer = new WebServer(IpAddress, Port, 1, WebPath);
             webServer.Run();
         }
     }
