@@ -130,7 +130,7 @@ namespace Orts.Viewer3D.WebServices
             }
 
         // ===========================================================================================
-        //      Viewer object from Viewer3D - needed for acces to Heads Up Display Data
+        //      Viewer object from Viewer3D - needed for access to Heads Up Display Data
         // ===========================================================================================
             public Viewer viewer;
 
@@ -147,6 +147,9 @@ namespace Orts.Viewer3D.WebServices
             ApiDict.Add("/API/APISAMPLE", ApiSample);
             ApiDict.Add("/API/TRACKMONITOR", ApiTrackMonitor);
             ApiDict.Add("/API/TRAININFO", ApiTrainInfo);
+
+            var apiCabControls = new ApiCabControls();
+            ApiDict.Add("/API/1/GetCabControls".ToUpper(), apiCabControls.GetCabControls); // /1/ indicates API version
             return;
         }
 
@@ -160,6 +163,9 @@ namespace Orts.Viewer3D.WebServices
             // Viewer is not yet initialized in the GameState object - wait until it is
             while ((viewer = Program.Viewer) == null) 
                 Thread.Sleep(1000);
+
+            // Not very tidy
+            ApiCabControls.Viewer = viewer;
 
             try
             {
@@ -312,7 +318,7 @@ namespace Orts.Viewer3D.WebServices
             {
                 Running = false;
                 // TODO:
-                // Will Sutdown and close break out of any async waiting states??
+                // Will shutdown and close break out of any async waiting states??
                 try
                 {
                     ServerSocket.Shutdown(SocketShutdown.Both);
@@ -355,7 +361,7 @@ namespace Orts.Viewer3D.WebServices
         private static void ProcessGet(HttpRequest request, HttpResponse response)
         {
             request.URI = request.URI.Replace("/", "\\").Replace("\\..", "");
-            if (request.URI.StartsWith("/API/"))
+            if (request.URI.StartsWith("\\API\\"))
             {
                 ProcessGetAPI(request, response);
                 return;
@@ -504,9 +510,16 @@ namespace Orts.Viewer3D.WebServices
             {
                 Console.WriteLine("Not Found"); //TODO
             }
-            object result = apiMethod(Parameters);
-            string json = JsonConvert.SerializeObject(result, Formatting.Indented);
-            return json;
+            if (apiMethod != null) // in case browser left running and Open Rails re-started
+            {
+                object result = apiMethod(Parameters);
+                string json = JsonConvert.SerializeObject(result, Formatting.Indented);
+                return json;
+            }
+            else
+            {
+                return "{}"; // empty JSON
+            }
         }
 
         // =======================================================================================
@@ -546,7 +559,7 @@ namespace Orts.Viewer3D.WebServices
             sampleData.strArrayData[0] = "First member";
             sampleData.strArrayData[1] = "Second member";
             sampleData.strArrayData[2] = "Third Member";
-            sampleData.strArrayData[3] = "Forth member";
+            sampleData.strArrayData[3] = "Fourth member";
             sampleData.strArrayData[4] = "Fifth member";
 
             return (sampleData);

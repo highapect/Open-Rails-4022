@@ -42,7 +42,8 @@ namespace Orts.Viewer3D.RollingStock
 {
     public class MSTSLocomotiveViewer : MSTSWagonViewer
     {
-        MSTSLocomotive Locomotive;
+        //MSTSLocomotive Locomotive;
+        public MSTSLocomotive Locomotive;
 
         protected Dictionary<string, List<ParticleEmitterViewer>> ParticleDrawers = new Dictionary<string, List<ParticleEmitterViewer>>();
 
@@ -964,10 +965,10 @@ namespace Orts.Viewer3D.RollingStock
 
         private Point _PrevScreenSize;
 
-        //private List<CabViewControls> CabViewControlsList = new List<CabViewControls>();
-        private List<List<CabViewControlRenderer>> CabViewControlRenderersList = new List<List<CabViewControlRenderer>>();
-        private Viewer _Viewer;
+        //private List<List<CabViewControlRenderer>> CabViewControlRenderersList = new List<List<CabViewControlRenderer>>();
+        public List<List<CabViewControlRenderer>> CabViewControlRenderersList = new List<List<CabViewControlRenderer>>();
         private MSTSLocomotive _Locomotive;
+        private Viewer _Viewer;
         private int _Location;
         private bool _isNightTexture;
         public Dictionary<int, CabViewControlRenderer> ControlMap;
@@ -1301,7 +1302,8 @@ namespace Orts.Viewer3D.RollingStock
     {
         protected readonly Viewer Viewer;
         protected readonly MSTSLocomotive Locomotive;
-        protected readonly CabViewControl Control;
+        //protected readonly CabViewControl Control;
+        public readonly CabViewControl Control;
         protected readonly CabShader Shader;
         protected readonly SpriteBatchMaterial ControlView;
 
