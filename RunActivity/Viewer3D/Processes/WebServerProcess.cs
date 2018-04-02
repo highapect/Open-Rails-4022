@@ -27,6 +27,7 @@ using Orts.Viewer3D.WebServices;
 using ORTS.Common;
 using ORTS.Settings;
 using Orts.Processes;
+using System.Net.Sockets; // for Socket
 
 namespace Orts.Viewer3D.Processes
 {
@@ -40,13 +41,15 @@ namespace Orts.Viewer3D.Processes
         //readonly CancellationTokenSource CancellationTokenSource;
 
         WebServer webServer;
-        string IpAddress = "10.0.0.61";
-        int Port = 2150;
+        string LocalIp4Address;
+        int Port = 2150; // Port is not officially reserved for any other application - CJ 1-Apr-2018
         string WebPath = @"\Open Rails\Program\Content\Web";
 
         public WebServerProcess(Game game)
         {
             Game = game;
+            LocalIp4Address = GetLocalIp4Address();
+
             Thread = new Thread(WebServerThread);
         //    WatchdogToken = new WatchdogToken(Thread);
         //    WatchdogToken.SpecialDispensationFactor = 6;    // ???
@@ -104,13 +107,37 @@ namespace Orts.Viewer3D.Processes
            State.WaitTillFinished();
         }
 
+        /// <summary>
+        /// Gets IP4 address for local network (if there is one).
+        /// Based on https://stackoverflow.com/questions/6803073/get-local-ip-address
+        /// </summary>
+        /// <returns></returns>
+        private string GetLocalIp4Address()
+        {
+            string localIp4;
+            try
+            {
+                using (Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, 0))
+                {
+                    socket.Connect("8.8.8.8", 65530);
+                    IPEndPoint endPoint = socket.LocalEndPoint as IPEndPoint;
+                    localIp4 = endPoint.Address.ToString();
+                }
+                return localIp4;
+            }
+            catch
+            {
+                throw new Exception("No network adapters found with an IPv4 address");
+            }
+        }
+
         [ThreadName("WebServer")]
         void WebServerThread()
         {
             Profiler.SetThread();
             Game.SetThreadLanguage();
 
-            webServer = new WebServer(IpAddress, Port, 1, WebPath);
+            webServer = new WebServer(LocalIp4Address, Port, 1, WebPath);
             webServer.Run();
         }
     }
