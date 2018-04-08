@@ -64,7 +64,7 @@ namespace Orts.Viewer3D.Processes
 
         public void Stop()
         {
-            webServer.stop();
+            webServer.Stop();
 
         //    Game.WatchdogProcess.Unregister(WatchdogToken);
         //    CancellationTokenSource.Cancel();
@@ -127,7 +127,8 @@ namespace Orts.Viewer3D.Processes
             }
             catch
             {
-                throw new Exception("No network adapters found with an IPv4 address");
+                //throw new Exception("No network adapters found with an IPv4 address");
+                return null;
             }
         }
 

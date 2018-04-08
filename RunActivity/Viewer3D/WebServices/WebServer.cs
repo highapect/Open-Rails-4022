@@ -89,11 +89,12 @@ namespace Orts.Viewer3D.WebServices
     public class WebServer
     {
         private bool Running = false;
-        private int timeout = 10;
+        private int Timeout = 10;
         private Socket ServerSocket = null;
         private static Encoding CharEncoder = Encoding.UTF8;
         private static string ContentPath = "";
-        private IPAddress ipAddress = null;
+        private IPAddress IpAddress = null;
+        private string LocalIpAddressString = null;
         private int Port = 0;
         private int MaxConnections = 0;
 
@@ -139,7 +140,8 @@ namespace Orts.Viewer3D.WebServices
         // ===========================================================================================
         public WebServer(string ipAddr, int port, int maxConnections, string path)
         {
-            ipAddress = IPAddress.Parse(ipAddr);
+            LocalIpAddressString = ipAddr;
+            IpAddress = IPAddress.Parse(ipAddr);
             Port = port;
             ContentPath = path;
             MaxConnections = maxConnections;
@@ -167,13 +169,18 @@ namespace Orts.Viewer3D.WebServices
             // Not very tidy
             ApiCabControls.Viewer = viewer;
 
+            if (String.IsNullOrEmpty(LocalIpAddressString))
+                Trace.WriteLine("Web server not listening as no IP address found.");
+            else
+                Trace.WriteLine(String.Format("Web server listening on http://{0}:{1}", LocalIpAddressString, Port));
+
             try
             {
                 ServerSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                ServerSocket.Bind(new IPEndPoint(ipAddress, Port));
+                ServerSocket.Bind(new IPEndPoint(IpAddress, Port));
                 ServerSocket.Listen(MaxConnections);
-                ServerSocket.ReceiveTimeout = timeout;
-                ServerSocket.SendTimeout = timeout;
+                ServerSocket.ReceiveTimeout = Timeout;
+                ServerSocket.SendTimeout = Timeout;
             }
             catch (Exception e)
             {
@@ -189,7 +196,7 @@ namespace Orts.Viewer3D.WebServices
                 try
                 {
                     // Start an asynchronous socket to listen for connections.
-                    ServerSocket.BeginAccept(new AsyncCallback(acceptCallback), ServerSocket);
+                    ServerSocket.BeginAccept(new AsyncCallback(AcceptCallback), ServerSocket);
                 }
                 catch (Exception e)
                 {
@@ -204,13 +211,14 @@ namespace Orts.Viewer3D.WebServices
                     break;
                 }
                 // Wait until a connection is made before continuing.
+                
                 allDone.WaitOne();
             }
         }
 
         // ===========================================================================================
         // ===========================================================================================
-        public static void acceptCallback(IAsyncResult ar)
+        public static void AcceptCallback(IAsyncResult ar)
         {
             // Signal the main thread to continue.
             allDone.Set();
@@ -220,13 +228,13 @@ namespace Orts.Viewer3D.WebServices
             // Create the state object.
             StateObject state = new StateObject();
             state.WorkSocket = handler;
-            handler.BeginReceive(state.Buffer, 0, StateObject.BufferSize, 0, new AsyncCallback(receiveCallback), state);
+            handler.BeginReceive(state.Buffer, 0, StateObject.BufferSize, 0, new AsyncCallback(ReceiveCallback), state);
         }
 
         // ===========================================================================================
         // 		Main processing loop - read request and call  response functions
         // ===========================================================================================
-        public static void receiveCallback(IAsyncResult ar)
+        public static void ReceiveCallback(IAsyncResult ar)
         {
             // Retrieve the state object and the handler socket
             // from the asynchronous state object.
@@ -261,7 +269,7 @@ namespace Orts.Viewer3D.WebServices
                         ProcessGet(request, response);
                     }
                     else
-                        sendNotImplemented(response);
+                        SendNotImplemented(response);
                     return;
                 }
                 else if (request.Method.Equals(""))
@@ -281,7 +289,7 @@ namespace Orts.Viewer3D.WebServices
 
                     if (!request.Method.Equals("GET") && !request.Method.Equals("POST"))
                     {
-                        sendNotImplemented(response);
+                        SendNotImplemented(response);
                         return;
                     }
                 }
@@ -289,11 +297,11 @@ namespace Orts.Viewer3D.WebServices
                 {
                     try
                     {
-                        int seperator = lineRead.IndexOf(':');
-                        string heading = lineRead.Substring(0, seperator);
+                        int separator = lineRead.IndexOf(':');
+                        string heading = lineRead.Substring(0, separator);
                         heading = heading.Trim();
-                        ++seperator;
-                        string value = lineRead.Substring(seperator);
+                        ++separator;
+                        string value = lineRead.Substring(separator);
                         value = value.Trim();
                         request.Headers.Add(heading, value);
                     }
@@ -307,12 +315,12 @@ namespace Orts.Viewer3D.WebServices
                     break;
                 }
             }
-            sendServerError(response);
+            SendServerError(response);
         }
 
         // ===========================================================================================
         // ===========================================================================================
-        public void stop()
+        public void Stop()
         {
             if (Running)
             {
@@ -341,19 +349,28 @@ namespace Orts.Viewer3D.WebServices
             if (!request.URI.StartsWith("/API/"))
             {
                 Console.WriteLine("Post Method - API Not Implemented [{0}]", request.URI);
-                sendNotImplemented(response);
+                SendNotImplemented(response);
                 return;
             }
             response.strContent = ExecuteApi(request.URI, request.Parameters);
             response.ContentType = "application/json";
-            sendOkResponse(response);
+            SendOkResponse(response);
         }
 
         // ===========================================================================================
         // ===========================================================================================
         private static void ProcessGetAPI(HttpRequest request, HttpResponse response)
         {
-            sendNotImplemented(response);
+            request.URI = request.URI.Replace(@"\", "/");
+            string[] token = request.URI.Split('?');
+            request.URI = token[0].ToUpper();
+            if (token.Length > 1 )
+            {
+                request.Parameters = token[1];
+            }
+            response.strContent = ExecuteApi(request.URI, request.Parameters);
+            response.ContentType = "application/json";
+            SendOkResponse(response);
         }
 
         // ===========================================================================================
@@ -381,7 +398,7 @@ namespace Orts.Viewer3D.WebServices
             {
                 // Convert %20 code back to space to match filename
                 // Note: VS wouldn't recognise HttpUtility until System.Web was added as a reference. Don't see why this is the case - CJ.
-                var filename = System.Web.HttpUtility.UrlDecode(request.URI);
+                var filename = HttpUtility.UrlDecode(request.URI);
                 var path = ContentPath + filename;
                 if (File.Exists(path))
                 { 
@@ -389,13 +406,13 @@ namespace Orts.Viewer3D.WebServices
                     response.byteContent = new byte[bytes.Length];
                     response.byteContent = bytes;
                     response.ContentType = extensions[extension];
-                    sendOkResponse(response);
+                    SendOkResponse(response);
                 }
                 else
-                    sendNotFound(response); // We don't support this extension. We are assuming that it doesn't exist.
+                    SendNotFound(response); // We don't support this extension. We are assuming that it doesn't exist.
             }
             else
-                sendNotImplemented(response);
+                SendNotImplemented(response);
             return;
         }
 
@@ -419,7 +436,7 @@ namespace Orts.Viewer3D.WebServices
 
         // ===========================================================================================
         // ===========================================================================================
-        private static void sendNotImplemented(HttpResponse response)
+        private static void SendNotImplemented(HttpResponse response)
         {
             response.ResponseCode = "501 Not Implemented";
             HTMLContent(response);
@@ -428,7 +445,7 @@ namespace Orts.Viewer3D.WebServices
 
         // ===========================================================================================
         // ===========================================================================================
-        private static void sendNotFound(HttpResponse response)
+        private static void SendNotFound(HttpResponse response)
         {
             response.ResponseCode = "404 Not Found";
             HTMLContent(response);
@@ -437,7 +454,7 @@ namespace Orts.Viewer3D.WebServices
 
         // ===========================================================================================
         // ===========================================================================================
-        private static void sendServerError(HttpResponse response)
+        private static void SendServerError(HttpResponse response)
         {
             response.ResponseCode = "500 Internal Server Error";
             HTMLContent(response);
@@ -446,7 +463,7 @@ namespace Orts.Viewer3D.WebServices
 
         // ===========================================================================================
         // ===========================================================================================
-        private static void sendOkResponse(HttpResponse response)
+        private static void SendOkResponse(HttpResponse response)
         {
             response.ResponseCode = "200 OK";
             SendHttp(response);
