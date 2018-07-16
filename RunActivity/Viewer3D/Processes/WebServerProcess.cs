@@ -43,7 +43,7 @@ namespace Orts.Viewer3D.Processes
         WebServer webServer;
         string LocalIp4Address;
         int Port = 2150; // Port is not officially reserved for any other application - CJ 1-Apr-2018
-        string WebPath = @"\Open Rails\Program\Content\Web";
+        //string WebPath = @"\Open Rails\Program\Content\Web";
 
         public WebServerProcess(Game game)
         {
@@ -138,7 +138,8 @@ namespace Orts.Viewer3D.Processes
             Profiler.SetThread();
             Game.SetThreadLanguage();
 
-            webServer = new WebServer(LocalIp4Address, Port, 1, WebPath);
+            //webServer = new WebServer(LocalIp4Address, Port, 1, WebPath);
+            webServer = new WebServer(LocalIp4Address, Port, 1);
             webServer.Run();
         }
     }

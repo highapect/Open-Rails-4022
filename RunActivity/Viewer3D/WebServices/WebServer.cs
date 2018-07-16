@@ -72,7 +72,7 @@ namespace Orts.Viewer3D.WebServices
     }
 
         // ==================================================================
-        // 		class for holding HTTP Resonse data
+        // 		class for holding HTTP Response data
         // ==================================================================
         public class HttpResponse
     {
@@ -92,10 +92,13 @@ namespace Orts.Viewer3D.WebServices
         private int Timeout = 10;
         private Socket ServerSocket = null;
         private static Encoding CharEncoder = Encoding.UTF8;
+        private static string CustomContentPath = "";
         private static string ContentPath = "";
         private IPAddress IpAddress = null;
-        private string LocalIpAddressString = null;
-        private int Port = 0;
+        //private string LocalIpAddressString = null;
+        //private int Port = 0;
+        public static string LocalIpAddressString = null;
+        public static int Port = 0;
         private int MaxConnections = 0;
 
         // ===========================================================================================
@@ -104,7 +107,7 @@ namespace Orts.Viewer3D.WebServices
         private static ManualResetEvent allDone = new ManualResetEvent(false);
 
         // ===========================================================================================
-        // File exstensions this server will handle - any other extensions are returns as not found
+        // File extensions this server will handle - any other extensions are returns as not found
         // ===========================================================================================
         private static Dictionary<string, string> extensions = new Dictionary<string, string>()
         {
@@ -138,12 +141,12 @@ namespace Orts.Viewer3D.WebServices
         // ===========================================================================================
         //  	WebServer constructor
         // ===========================================================================================
-        public WebServer(string ipAddr, int port, int maxConnections, string path)
+        //public WebServer(string ipAddr, int port, int maxConnections, string path)
+        public WebServer(string ipAddr, int port, int maxConnections)
         {
             LocalIpAddressString = ipAddr;
             IpAddress = IPAddress.Parse(ipAddr);
             Port = port;
-            ContentPath = path;
             MaxConnections = maxConnections;
             ApiDict.Add("/API/HUD", ApiHUD);
             ApiDict.Add("/API/APISAMPLE", ApiSample);
@@ -165,6 +168,14 @@ namespace Orts.Viewer3D.WebServices
             // Viewer is not yet initialized in the GameState object - wait until it is
             while ((viewer = Program.Viewer) == null) 
                 Thread.Sleep(1000);
+
+            // Client files distributed with Open Rails are stored in <folder for executable>\Content\Web\
+            ContentPath = Path.Combine(Program.Viewer.Game.ContentPath, @"Web");
+
+            // Client files written by user can override distributed files and are stored in <profile>\Documents\My Games\Open Rails\Web\
+            // Client files written by user which are independent of distributed files should be stored in <profile>\Documents\My Games\Open Rails\Web\Custom\
+            CustomContentPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                @"My Games\Open Rails\Web");
 
             // Not very tidy
             ApiCabControls.Viewer = viewer;
@@ -377,43 +388,119 @@ namespace Orts.Viewer3D.WebServices
         // ===========================================================================================
         private static void ProcessGet(HttpRequest request, HttpResponse response)
         {
-            request.URI = request.URI.Replace("/", "\\").Replace("\\..", "");
-            if (request.URI.StartsWith("\\API\\"))
+            //request.URI = request.URI.Replace("/", "\\").Replace("\\..", "");
+            //if (request.URI.StartsWith("\\API\\"))
+            //{
+            //    ProcessGetAPI(request, response);
+            //    return;
+            //}
+            //int length = request.URI.Length;
+            //int start = request.URI.LastIndexOf('.');
+            //if (start == -1)
+            //{
+            //    if (request.URI.Substring(length - 1, 1) != "\\")
+            //        request.URI += "\\";
+            //    request.URI += "index.html";
+            //}
+            //start = request.URI.LastIndexOf('.');
+            //length = request.URI.Length - start - 1;
+            //string extension = request.URI.Substring(start + 1, length);
+            //if (extensions.ContainsKey(extension))
+            //{
+            //    // Convert %20 code back to space to match filename
+            //    // Note: VS wouldn't recognise HttpUtility until System.Web was added as a reference. Don't see why this is the case - CJ.
+            //    var filename = HttpUtility.UrlDecode(request.URI);
+            //    var path = ContentPath + filename;
+            //    if (File.Exists(path))
+            //    { 
+            //        byte[] bytes = File.ReadAllBytes(path);
+            //        response.byteContent = new byte[bytes.Length];
+            //        response.byteContent = bytes;
+            //        response.ContentType = extensions[extension];
+            //        SendOkResponse(response);
+            //    }
+            //    else
+            //        SendNotFound(response); // We don't support this extension. We are assuming that it doesn't exist.
+            //}
+            //else
+            //    SendNotImplemented(response);
+
+            if (request.URI.StartsWith("/API/"))
             {
                 ProcessGetAPI(request, response);
                 return;
             }
-            int length = request.URI.Length;
-            int start = request.URI.LastIndexOf('.');
-            if (start == -1)
+            // Convert from URI to filename
+            // Convert %20 code back to space to match filename
+            // Note: VS wouldn't recognise HttpUtility until System.Web was added as a reference. Don't see why this is the case - CJ.
+            var filePath = HttpUtility.UrlDecode(request.URI);
+            filePath = filePath.Replace("/", @"\");
+
+            // Add any relative path from referer
+            if (request.Headers.ContainsKey("Referer"))
             {
-                if (request.URI.Substring(length - 1, 1) != "\\")
-                    request.URI += "\\";
-                request.URI += "index.html";
+                string root = String.Format("http://{0}:{1}", LocalIpAddressString, Port);
+                var refererUri = HttpUtility.UrlDecode(request.Headers["Referer"]); ;
+
+                //TODO
+                // If refererUri ends in "/", then ignore it as the path is included in the request.URI
+
+
+                // Strip off any trailing "/"
+                if (refererUri.EndsWith("/"))
+                    refererUri = refererUri.Substring(0, refererUri.Length - 1);
+                var relativePath = refererUri.Substring(root.Length).Replace("/", @"\");
+                filePath = relativePath + @"\" + filePath;
             }
-            start = request.URI.LastIndexOf('.');
-            length = request.URI.Length - start - 1;
-            string extension = request.URI.Substring(start + 1, length);
-            if (extensions.ContainsKey(extension))
-            {
-                // Convert %20 code back to space to match filename
-                // Note: VS wouldn't recognise HttpUtility until System.Web was added as a reference. Don't see why this is the case - CJ.
-                var filename = HttpUtility.UrlDecode(request.URI);
-                var path = ContentPath + filename;
-                if (File.Exists(path))
-                { 
-                    byte[] bytes = File.ReadAllBytes(path);
-                    response.byteContent = new byte[bytes.Length];
-                    response.byteContent = bytes;
-                    response.ContentType = extensions[extension];
-                    SendOkResponse(response);
-                }
-                else
-                    SendNotFound(response); // We don't support this extension. We are assuming that it doesn't exist.
-            }
+
+            // Strip off any leading "\" to make path relative so Path.Combine will add paths together.
+            if (filePath.StartsWith(@"\"))
+                filePath = filePath.Substring(1);
+            
+            // Look firstly in the user's space
+            Console.WriteLine("\r\n" + CustomContentPath + ", " + filePath);
+            var combinedPath = Path.Combine(CustomContentPath, filePath);
+            Console.WriteLine(combinedPath);
+
+            // Look for a default file if none specified
+            string fullPath, extension;
+            AddDefaultFile(combinedPath, out fullPath, out extension);
+            Console.WriteLine(fullPath);
+
+            if (File.Exists(fullPath))
+                ServeFile(response, fullPath, extension);
             else
-                SendNotImplemented(response);
-            return;
+            {
+                // and look secondly in the application space
+                combinedPath = Path.Combine(ContentPath, filePath);
+
+                AddDefaultFile(combinedPath, out fullPath, out extension);
+                if (File.Exists(fullPath))
+                    ServeFile(response, fullPath, extension);
+                else // give up
+                    SendNotFound(response);
+            }
+        }
+
+        private static void AddDefaultFile(string combinedPath, out string fullPath, out string extension)
+        {
+            fullPath = combinedPath;
+            extension = Path.GetExtension(combinedPath);
+            if (extension == "")
+            {
+                fullPath += @"\index.html";
+                extension = ".html";
+            }
+            extension = extension.Substring(1); // Strip off leading "."
+        }
+
+        private static void ServeFile(HttpResponse response, string customFullFilePath, string extension)
+        {
+            byte[] bytes = File.ReadAllBytes(customFullFilePath);
+            response.byteContent = new byte[bytes.Length];
+            response.byteContent = bytes;
+            response.ContentType = extensions[extension];
+            SendOkResponse(response);
         }
 
         // ===========================================================================================
